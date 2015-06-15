@@ -1,0 +1,4 @@
+cd /home/Server/ftp/
+lcd ../Skree/build/libs/
+put Skree*.jar Skree-Uploading.jar
+rename Skree-Uploading.jar Skree.jar

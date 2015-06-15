@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Skelril Distrubtion - Deployment script
+# Skelril Deployment - Deployment script
 # Copyright (C) 2015 Wyatt Childers
 #
 # This program is free software: you can redistribute it and/or modify

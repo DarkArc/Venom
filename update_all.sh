@@ -45,7 +45,7 @@ if [[ "$PROJ" == "Sponge" || "$PROJ" == "*" ]]
     DONE=1
   fi
 
-# No project!
+# Request status / selection validation
 if [[ "$DONE" == 1 ]]
   then
     echo "Request completed successfully!"

@@ -16,38 +16,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-echo Starting upload process...
+echo "Starting upload process..."
 
 # Determin project
 
-echo Projects availible:
-echo - Skree
-echo - Sponge
+echo "Projects availible:"
+echo "- Skree"
+echo "- Sponge"
 
 echo "Please enter the project you would like to update (* for all):"
 read PROJ
 
-DONE=$false
+DONE=0
 
 # Process Skree
 if [[ "$PROJ" == "Skree" || "$PROJ" == "*" ]]
   then
-    echo Processing Skree...
+    echo "Processing Skree..."
     sftp -b skree_batch.txt Dark_Arc@server.skelril.com
+    DONE=1
   fi
 
 # Process Sponge
 if [[ "$PROJ" == "Sponge" || "$PROJ" == "*" ]]
   then
-    echo Processing Sponge...
+    echo "Processing Sponge..."
     sftp -b sponge_batch.txt Dark_Arc@server.skelril.com
-    exit 0
+    DONE=1
   fi
 
 # No project!
-if [[ "$DONE" == true]]
+if [[ "$DONE" == 1 ]]
   then
-    echo Request completed successfully!
+    echo "Request completed successfully!"
   else
-    echo Invalid project, terminating!
+    echo "Invalid project, terminating!"
   fi

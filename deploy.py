@@ -54,16 +54,12 @@ class FileDefinition:
 data = open('test_deploy.json')
 val = json.load(data)
 
-destinations = val['destinations']
-
 destinationMap = dict()
-for dest in destinations:
+for dest in val['destinations']:
     destinationMap[dest['id']] = Destination(dest['id'], dest['user'], dest['addr'])
 
-files = val['files']
-
 fileDefs = []
-for fileDef in files:
+for fileDef in val['files']:
     srcDict = fileDef['src']
 
     dests = []
@@ -78,7 +74,9 @@ for fileDef in fileDefs:
     srcID = fileDef.src.id
     srcDir = fileDef.src.dir
     srcFile = fileDef.src.name
+
     print("Uploading '" + srcFile + "' from: " + srcDir + "   [" + srcID + "]")
+
     for dest in fileDef.dests:
         destMapObj = destinationMap[dest.id]
 

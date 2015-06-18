@@ -1,0 +1,41 @@
+{
+  "destinations": [
+    {
+      "id": "skelril",
+      "user": "Dark_Arc",
+      "addr": "server.skelril.com"
+    }
+  ],
+  "files": [
+    {
+      "id": "Sponge Batch",
+      "src": {
+        "id": "local",
+        "name": "sponge_batch.txt",
+        "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
+      },
+      "dest": [
+        {
+          "id": "skelril",
+          "name": "sponge_batch.txt",
+          "dir": "/home/Dark_Arc"
+        }
+      ]
+    },
+    {
+      "id": "Skree",
+      "src": {
+        "id": "local",
+        "name": "Skree-1.0.jar",
+        "dir": "/home/wyatt/Dev/MineCraft/Skelril/Skree/build/libs"
+      },
+      "dest": [
+        {
+          "id": "skelril",
+          "name": "Skree.jar",
+          "dir": "/home/Server/ftp"
+        }
+      ]
+    }
+  ]
+}

@@ -93,7 +93,7 @@ for fileDef in fileDefs:
             hostname, portstr = hostname.split(':')
             port = int(portstr)
 
-        print("Destination: " + destDir + destFile + "   [" + destID + " - " + hostname + ":" + str(port) + "]")
+        print("Destination: " + destDir + "/" + destFile + "   [" + destID + " - " + hostname + ":" + str(port) + "]")
 
         hostkeytype = None
         hostkey = None
@@ -130,7 +130,9 @@ for fileDef in fileDefs:
             sftp = paramiko.SFTPClient.from_transport(t)
 
             # move file
-            sftp.put(srcDir + '/' + srcFile, destDir + '/' + destFile)
+            sftp.put(srcDir + '/' + srcFile, destDir + '/' + destFile + ".temp")
+            sftp.remove(destDir + '/' + destFile);
+            sftp.rename(destDir + '/' + destFile + ".temp", destDir + '/' + destFile)
 
             print(destFile + " uploaded successfully!")
 

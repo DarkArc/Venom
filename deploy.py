@@ -29,6 +29,13 @@ class Destination:
         self.id = id
         self.user = user
         self.addr = addr
+        self.password = None
+
+    def set_pass(self, password):
+        self.password = password
+
+    def get_pass(self):
+        return self.password
 
 class Path:
     def __init__(self, id, name, dir):
@@ -113,7 +120,12 @@ for fileDef in fileDefs:
 
         try:
             t = paramiko.Transport((hostname, port))
-            password = getpass("Enter password: ")
+
+            # If there's no password stored, take one
+            if destMapObj.get_pass() == None:
+                password = getpass("Enter password: ")
+                destMapObj.set_pass(password)
+
             t.connect(hostkey, username, password)
             # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
             #           gss_auth=True, gss_kex=True)

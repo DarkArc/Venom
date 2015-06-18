@@ -21,6 +21,7 @@ import json
 import socket
 import sys
 import os
+import re
 import paramiko
 from getpass import getpass
 
@@ -74,6 +75,11 @@ for fileDef in fileDefs:
     srcID = fileDef.src.id
     srcDir = fileDef.src.dir
     srcFile = fileDef.src.name
+
+    for fEntry in os.listdir(srcDir):
+        if re.match(srcFile, fEntry):
+            srcFile = fEntry
+            break
 
     print("Uploading '" + srcFile + "' from: " + srcDir + "   [" + srcID + "]")
 

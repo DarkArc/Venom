@@ -11,7 +11,7 @@
       "id": "Sponge Batch",
       "src": {
         "id": "local",
-        "name": "sponge_batch.txt",
+        "name": "sponge.*\\.txt",
         "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
       },
       "dest": [

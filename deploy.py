@@ -22,6 +22,7 @@ import socket
 import sys
 import os
 import paramiko
+from getpass import getpass
 
 class Destination:
     def __init__(self, id, user, addr):
@@ -112,7 +113,7 @@ for fileDef in fileDefs:
 
         try:
             t = paramiko.Transport((hostname, port))
-            password = input("Enter password: ")
+            password = getpass("Enter password: ")
             t.connect(hostkey, username, password)
             # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
             #           gss_auth=True, gss_kex=True)

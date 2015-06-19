@@ -23,6 +23,7 @@ import sys
 import os
 import re
 import paramiko
+from operator import itemgetter
 from getpass import getpass
 
 class Destination:
@@ -69,19 +70,38 @@ for fileDef in val['files']:
 
     fileDefs.append(FileDefinition(fileDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
 
+# File selection
+
+print("Avalible files:")
+for index, fileDef in enumerate(fileDefs):
+    print(str(index + 1) + ") " + fileDef.id)
+print("\nNote: Select files by their listed ID number seperated by a space, or * for all")
+selectIDs = input("Please select the files which you wish to upload: ")
+
+selectedFiles = []
+for ID in selectIDs.split():
+    if ID == "*":
+        selectedFiles = fileDefs
+        break
+    selectedFiles.append(fileDefs[int(ID) - 1])
+
 # File upload
 
-for fileDef in fileDefs:
+for fileDef in selectedFiles:
+    fileID = fileDef.id
     srcID = fileDef.src.id
     srcDir = fileDef.src.dir
     srcFile = fileDef.src.name
 
+    matchCandidates = []
+
     for fEntry in os.listdir(srcDir):
         if re.match(srcFile, fEntry):
-            srcFile = fEntry
-            break
+            matchCandidates.append((fEntry, os.path.getmtime(srcDir + "/" + fEntry)))
 
-    print("Uploading '" + srcFile + "' from: " + srcDir + "   [" + srcID + "]")
+    srcFile = sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
+
+    print("\nUploading " + fileID + " (" + srcFile + ") from: " + srcDir + "   [" + srcID + "]")
 
     for dest in fileDef.dests:
         destMapObj = destinationMap[dest.id]

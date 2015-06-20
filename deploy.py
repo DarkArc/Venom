@@ -24,8 +24,11 @@ import os
 import re
 import shutil
 import paramiko
-from operator import itemgetter
+import traceback
 from getpass import getpass
+from operator import itemgetter
+from paramiko import SFTPClient
+from paramiko.ssh_exception import AuthenticationException
 
 class Destination:
     def __init__(self, id):
@@ -52,9 +55,6 @@ class RemoteDestination(Destination):
 
         self.hostname = hostname
         self.port = port
-
-    def setPass(self, password):
-        self.password = password
 
     def getIdentifierStr(self):
         return "[" + self.id + " - " + self.hostname + ":" + str(self.port) + "]"
@@ -192,12 +192,13 @@ def promptForPass():
 
 def getPass(dest):
     if dest.password == None:
-        dest.setPass(promptForPass())
+        dest.password = promptForPass()
 
     return dest.password
 
 def lUpload(destDecl, srcPath, destPath):
     shutil.copyfile(srcPath, destPath)
+    return True
 
 def renameUpload(sftp, src, dest):
     sftp.put(src, dest + ".temp")
@@ -217,25 +218,36 @@ def upload(destDecl, srcPath, destPath):
         print("Failed to find a valid host key, cancelled!")
         sys.exit(2)
 
-    try:
-        t = paramiko.Transport((hostname, port))
-
-        t.connect(hostKey, username, getPass(destDecl))
-        # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
-        #           gss_auth=True, gss_kex=True)
-        sftp = paramiko.SFTPClient.from_transport(t)
-
-        renameUpload(sftp, srcPath, destPath)
-
-        t.close()
-    except Exception as e:
-        print('*** Caught exception: %s: %s' % (e.__class__, e))
-        traceback.print_exc()
+    attempts = 0
+    while not (attempts >= 3 or attempts == -1):
         try:
+            t = paramiko.Transport((hostname, port))
+
+            t.connect(hostKey, username, getPass(destDecl))
+            # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
+            #           gss_auth=True, gss_kex=True)
+
+            attempts = -1
+
+            renameUpload(SFTPClient.from_transport(t), srcPath, destPath)
+
             t.close()
-        except:
-            pass
-        sys.exit(1)
+
+            return True
+        except AuthenticationException as e:
+            attempts += 1
+            print("Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
+            destDecl.password = None
+        except Exception as e:
+            print('*** Caught exception: %s: %s' % (e.__class__, e))
+            traceback.print_exc()
+            sys.exit(1)
+        finally:
+            try:
+                t.close()
+            except:
+                pass
+    return False
 
 # Operation
 
@@ -264,8 +276,11 @@ for fileDef in selectedFiles:
         print(rightAlign("Destination: " + destPath, destDecl.getIdentifierStr()))
 
         if destDecl.id == "local":
-            lUpload(destDecl, srcPath, destPath)
+            successful = lUpload(destDecl, srcPath, destPath)
         else:
-            upload(destDecl, srcPath, destPath)
+            successful = upload(destDecl, srcPath, destPath)
 
-        print(destFile + " processed successfully!")
+        if (successful):
+            print(destFile + " processed successfully!")
+        else:
+            print("Processing of " + destFile + " was unsuccessful!")

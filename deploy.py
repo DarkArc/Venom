@@ -152,9 +152,9 @@ selectedFiles = selectFiles(listFiles(fileDefs))
 
 # Functions
 
-def listDestinations(destinations):
+def listDestinations(dests):
     print("Avalible destinations:")
-    values = sorted(list(destinations.values()), key = attrgetter('id'))
+    values = sorted(dests, key = attrgetter('id'))
     for index, dest in enumerate(values):
         print(str(index + 1) + ") " + dest.id)
     print("\nNote: Select destinations by their listed ID number seperated by a space, or * for all")
@@ -163,19 +163,26 @@ def listDestinations(destinations):
 def promptForDestinations():
     return input("Please select the destinations which you wish to upload to: ")
 
-def selectDestinations(destinations):
+def selectDestinations(dests):
+    global destinations
     for ID in promptForDestinations().split():
         if ID == "*":
-            for dest in destinations:
-                dest.enabled = True
+            for dest in dests:
+                destinations[dest.id].enabled = True
             break
-        destinations[int(ID) - 1].enabled = True
+        destinations[dests[int(ID) - 1].id].enabled = True
 
-    return selectedFiles
+def askDestinationSelectionMode():
+    print("Destination modes:");
+    print("1) Global - One prompt (may prevent some files from uploading)")
+    print("2) Individual - Each file prompots")
 
-# Operation
+    print("\nNote: Select mode by its listed ID number")
+    return int(input("Please choose a mode: "))
 
-selectDestinations(listDestinations(destinations))
+globalSelection = askDestinationSelectionMode() == 1
+if globalSelection:
+    selectDestinations(listDestinations(list(destinations.values())))
 
 ################################################################################
 #                                                                              #
@@ -297,22 +304,24 @@ for fileDef in selectedFiles:
     print("\nUploading " + fileID + " (" + srcFile + ")...")
     print(rightAlign("File source: " + srcPath, srcDecl.getIdentifierStr()))
 
+    if not globalSelection:
+        selectDestinations(listDestinations(fileDef.dests))
+
     for fileDest in fileDef.dests:
         destDecl = destinations[fileDest.id]
 
         if destDecl == None:
             print("  Invalid remote specified, skipping!")
 
-        destID = destDecl.id
+        if not destDecl.enabled:
+            continue
+
         destDir = fileDest.dir
         destFile = fileDest.name
         destPath = createPath(destDir, destFile)
 
         print(rightAlign("  Destination: " + destPath, destDecl.getIdentifierStr()))
 
-        if not destDecl.enabled:
-            print("  " + destFile + " skipped, the destination '" + destID + "' was not enabled!")
-            continue
 
         if destDecl.id == "local":
             successful = lUpload(destDecl, srcPath, destPath)

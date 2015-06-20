@@ -33,10 +33,10 @@ class Destination:
         self.addr = addr
         self.password = None
 
-    def set_pass(self, password):
+    def setPass(self, password):
         self.password = password
 
-    def get_pass(self):
+    def getPass(self):
         return self.password
 
 class Path:
@@ -51,114 +51,179 @@ class FileDefinition:
         self.src = src
         self.dests = dests
 
-# Parsing
+################################################################################
+#                                                                              #
+# Parsing                                                                      #
+#                                                                              #
+################################################################################
+
+#Functions
+
+def getDestinations(val):
+    destinationMap = dict()
+    for dest in val['destinations']:
+        destinationMap[dest['id']] = Destination(dest['id'], dest['user'], dest['addr'])
+
+    return destinationMap
+
+def getFileDefs(val):
+    fileDefs = []
+    for fileDef in val['files']:
+        srcDict = fileDef['src']
+
+        dests = []
+        for dest in fileDef['dest']:
+            dests.append(Path(dest['id'], dest['name'], dest['dir']))
+
+        fileDefs.append(FileDefinition(fileDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
+
+    return fileDefs
+
+# Operation
 
 data = open('test_deploy.json')
 val = json.load(data)
 
-destinationMap = dict()
-for dest in val['destinations']:
-    destinationMap[dest['id']] = Destination(dest['id'], dest['user'], dest['addr'])
+destinations = getDestinations(val)
+fileDefs = getFileDefs(val)
 
-fileDefs = []
-for fileDef in val['files']:
-    srcDict = fileDef['src']
+################################################################################
+#                                                                              #
+# File Selection                                                               #
+#                                                                              #
+################################################################################
 
-    dests = []
-    for dest in fileDef['dest']:
-        dests.append(Path(dest['id'], dest['name'], dest['dir']))
+# Functions
 
-    fileDefs.append(FileDefinition(fileDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
+def listFiles(fileDefs):
+    print("Avalible files:")
+    for index, fileDef in enumerate(fileDefs):
+        print(str(index + 1) + ") " + fileDef.id)
+    print("\nNote: Select files by their listed ID number seperated by a space, or * for all")
 
-# File selection
+def promptForFiles():
+    return input("Please select the files which you wish to upload: ")
 
-print("Avalible files:")
-for index, fileDef in enumerate(fileDefs):
-    print(str(index + 1) + ") " + fileDef.id)
-print("\nNote: Select files by their listed ID number seperated by a space, or * for all")
-selectIDs = input("Please select the files which you wish to upload: ")
+def selectFiles(fileDefs):
+    selectedFiles = []
+    for ID in promptForFiles().split():
+        if ID == "*":
+            selectedFiles = fileDefs
+            break
+        selectedFiles.append(fileDefs[int(ID) - 1])
 
-selectedFiles = []
-for ID in selectIDs.split():
-    if ID == "*":
-        selectedFiles = fileDefs
-        break
-    selectedFiles.append(fileDefs[int(ID) - 1])
+    return selectedFiles
 
-# File upload
+# Operation
 
-for fileDef in selectedFiles:
-    fileID = fileDef.id
-    srcID = fileDef.src.id
-    srcDir = fileDef.src.dir
-    srcFile = fileDef.src.name
+listFiles(fileDefs)
+selectedFiles = selectFiles(fileDefs)
 
+################################################################################
+#                                                                              #
+# File Upload                                                                  #
+#                                                                              #
+################################################################################
+
+# Functions
+
+def createPath(dir, file):
+    return dir + "/" + file
+
+def rightAlign(mainText, rightColumn):
+    columns, lines = os.get_terminal_size()
+    return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
+
+def mostRecentMatch(srcDir, srcFile):
     matchCandidates = []
 
     for fEntry in os.listdir(srcDir):
         if re.match(srcFile, fEntry):
             matchCandidates.append((fEntry, os.path.getmtime(srcDir + "/" + fEntry)))
 
-    srcFile = sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
+    return sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
 
-    print("\nUploading " + fileID + " (" + srcFile + ") from: " + srcDir + "   [" + srcID + "]")
+def deriveRemoteDetails(hostname):
+    port = 22
 
-    for dest in fileDef.dests:
-        destMapObj = destinationMap[dest.id]
+    if hostname.find(':') >= 0:
+        hostname, portstr = hostname.split(':')
+        port = int(portstr)
 
-        destID = dest.id
-        destDir = dest.dir
-        destFile = dest.name
+    return hostname, port
 
-        username = destMapObj.user
-        hostname = destMapObj.addr
-
-        port = 22
-
-        if hostname.find(':') >= 0:
-            hostname, portstr = hostname.split(':')
-            port = int(portstr)
-
-        print("Destination: " + destDir + "/" + destFile + "   [" + destID + " - " + hostname + ":" + str(port) + "]")
-
-        hostkeytype = None
-        hostkey = None
+def getHostKeyData(hostname):
+    hostKeyType = None
+    hostKey = None
+    try:
+        host_keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+    except IOError:
         try:
-            host_keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+            # try ~/ssh/ too, because windows can't have a folder named ~/.ssh/
+            host_keys = paramiko.util.load_host_keys(os.path.expanduser('~/ssh/known_hosts'))
         except IOError:
-            try:
-                # try ~/ssh/ too, because windows can't have a folder named ~/.ssh/
-                host_keys = paramiko.util.load_host_keys(os.path.expanduser('~/ssh/known_hosts'))
-            except IOError:
-                print('*** Unable to open host keys file')
-                host_keys = {}
+            host_keys = {}
 
-        if hostname in host_keys:
-            hostkeytype = host_keys[hostname].keys()[0]
-            hostkey = host_keys[hostname][hostkeytype]
-            print('Using host key of type %s' % hostkeytype)
+    if hostname in host_keys:
+        hostKeyType = host_keys[hostname].keys()[0]
+        hostKey = host_keys[hostname][hostKeyType]
 
-        if hostkeytype == None:
-            print('Failed to find a valid host key, cancelled!')
+    return hostKey, hostKeyType
+
+def promptForPass():
+    return getpass("Enter password: ")
+
+def getPass(dest):
+    if dest.getPass() == None:
+        dest.setPass(promptForPass())
+
+    return dest.getPass()
+
+def renameUpload(sftp, src, dest):
+    sftp.put(src, dest + ".temp")
+    sftp.remove(dest);
+    sftp.rename(dest + ".temp", dest)
+
+# Operation
+
+for fileDef in selectedFiles:
+    fileID = fileDef.id
+    srcID = fileDef.src.id
+    srcDir = fileDef.src.dir
+    srcFile = mostRecentMatch(srcDir, fileDef.src.name)
+
+    print("\nUploading " + fileID + " (" + srcFile + ")...")
+    print(rightAlign("File source: " + createPath(srcDir, srcFile), "[" + srcID + "]"))
+
+    for fileDest in fileDef.dests:
+        destDecl = destinations[fileDest.id]
+
+        destID = fileDest.id
+        destDir = fileDest.dir
+        destFile = fileDest.name
+
+        username = destDecl.user
+        hostname, port = deriveRemoteDetails(destDecl.addr)
+
+        print(rightAlign("Destination: " + createPath(destDir, destFile), "[" + destID + " - " + hostname + ":" + str(port) + "]"))
+
+        hostKey, hostKeyType = getHostKeyData(hostname)
+
+        if hostKey != None and hostKeyType != None:
+            print("Using host key of type " + hostKeyType)
+        else:
+            print("Failed to find a valid host key, cancelled!")
             sys.exit(2)
 
         try:
             t = paramiko.Transport((hostname, port))
 
-            # If there's no password stored, take one
-            if destMapObj.get_pass() == None:
-                password = getpass("Enter password: ")
-                destMapObj.set_pass(password)
-
-            t.connect(hostkey, username, password)
+            t.connect(hostKey, username, getPass(destDecl))
             # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
             #           gss_auth=True, gss_kex=True)
             sftp = paramiko.SFTPClient.from_transport(t)
 
-            # move file
-            sftp.put(srcDir + '/' + srcFile, destDir + '/' + destFile + ".temp")
-            sftp.remove(destDir + '/' + destFile);
-            sftp.rename(destDir + '/' + destFile + ".temp", destDir + '/' + destFile)
+            renameUpload(sftp, createPath(srcDir, srcFile), createPath(destDir, destFile))
 
             print(destFile + " uploaded successfully!")
 

@@ -8,40 +8,10 @@
   ],
   "files": [
     {
-      "id": "Sponge Batch",
-      "src": {
-        "id": "local",
-        "name": "sponge.*\\.txt",
-        "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
-      },
-      "dest": [
-        {
-          "id": "skelril",
-          "name": "sponge_batch.txt",
-          "dir": "/home/Dark_Arc"
-        }
-      ]
-    },
-    {
-      "id": "Skree Batch",
-      "src": {
-        "id": "local",
-        "name": "skree_batch.txt",
-        "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
-      },
-      "dest": [
-        {
-          "id": "local",
-          "name": "skree_batch_is_amazing.txt",
-          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
-        }
-      ]
-    },
-    {
       "id": "Skree",
       "src": {
         "id": "local",
-        "name": "Skree-1.0.jar",
+        "name": "Skree.*\\.jar",
         "dir": "/home/wyatt/Dev/MineCraft/Skelril/Skree/build/libs"
       },
       "dest": [
@@ -49,6 +19,31 @@
           "id": "skelril",
           "name": "Skree.jar",
           "dir": "/home/Server/ftp"
+        },
+        {
+          "id": "local",
+          "name": "Skree.jar",
+          "dir": "/home/wyatt/.skelrillauncher/instances/Skelril Core/minecraft/mods"
+        }
+      ]
+    },
+    {
+      "id": "Sponge",
+      "src": {
+        "id": "local",
+        "name": "sponge-.*DEV-0.jar",
+        "dir": "/home/wyatt/Dev/MineCraft/SpongePowered/Sponge/build/libs"
+      },
+      "dest": [
+        {
+          "id": "skelril",
+          "name": "Sponge.jar",
+          "dir": "/home/Server/ftp"
+        },
+        {
+          "id": "local",
+          "name": "Sponge.jar",
+          "dir": "/home/wyatt/.skelrillauncher/instances/Skelril Core/minecraft/mods"
         }
       ]
     }

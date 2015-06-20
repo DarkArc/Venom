@@ -26,13 +26,14 @@ import shutil
 import paramiko
 import traceback
 from getpass import getpass
-from operator import itemgetter
+from operator import itemgetter, attrgetter
 from paramiko import SFTPClient
 from paramiko.ssh_exception import AuthenticationException
 
 class Destination:
     def __init__(self, id):
         self.id = id
+        self.enabled = False
 
     def getIdentifierStr(self):
         return "[" + self.id + "]"
@@ -124,6 +125,7 @@ def listFiles(fileDefs):
     for index, fileDef in enumerate(fileDefs):
         print(str(index + 1) + ") " + fileDef.id)
     print("\nNote: Select files by their listed ID number seperated by a space, or * for all")
+    return fileDefs
 
 def promptForFiles():
     return input("Please select the files which you wish to upload: ")
@@ -140,8 +142,40 @@ def selectFiles(fileDefs):
 
 # Operation
 
-listFiles(fileDefs)
-selectedFiles = selectFiles(fileDefs)
+selectedFiles = selectFiles(listFiles(fileDefs))
+
+################################################################################
+#                                                                              #
+# Destination Selection                                                        #
+#                                                                              #
+################################################################################
+
+# Functions
+
+def listDestinations(destinations):
+    print("Avalible destinations:")
+    values = sorted(list(destinations.values()), key = attrgetter('id'))
+    for index, dest in enumerate(values):
+        print(str(index + 1) + ") " + dest.id)
+    print("\nNote: Select destinations by their listed ID number seperated by a space, or * for all")
+    return values
+
+def promptForDestinations():
+    return input("Please select the destinations which you wish to upload to: ")
+
+def selectDestinations(destinations):
+    for ID in promptForDestinations().split():
+        if ID == "*":
+            for dest in destinations:
+                dest.enabled = True
+            break
+        destinations[int(ID) - 1].enabled = True
+
+    return selectedFiles
+
+# Operation
+
+selectDestinations(listDestinations(destinations))
 
 ################################################################################
 #                                                                              #
@@ -188,7 +222,7 @@ def getHostKeyData(hostname):
     return hostKey, hostKeyType
 
 def promptForPass():
-    return getpass("Enter password: ")
+    return getpass("  Enter password: ")
 
 def getPass(dest):
     if dest.password == None:
@@ -213,9 +247,9 @@ def upload(destDecl, srcPath, destPath):
     hostKey, hostKeyType = getHostKeyData(hostname)
 
     if hostKey != None and hostKeyType != None:
-        print("Using host key of type " + hostKeyType)
+        print("  Using host key of type " + hostKeyType)
     else:
-        print("Failed to find a valid host key, cancelled!")
+        print("  Failed to find a valid host key, cancelled!")
         sys.exit(2)
 
     attempts = 0
@@ -236,7 +270,7 @@ def upload(destDecl, srcPath, destPath):
             return True
         except AuthenticationException as e:
             attempts += 1
-            print("Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
+            print("  Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
             destDecl.password = None
         except Exception as e:
             print('*** Caught exception: %s: %s' % (e.__class__, e))
@@ -267,13 +301,18 @@ for fileDef in selectedFiles:
         destDecl = destinations[fileDest.id]
 
         if destDecl == None:
-            print("Invalid remote specified, skipping!")
+            print("  Invalid remote specified, skipping!")
 
+        destID = destDecl.id
         destDir = fileDest.dir
         destFile = fileDest.name
         destPath = createPath(destDir, destFile)
 
-        print(rightAlign("Destination: " + destPath, destDecl.getIdentifierStr()))
+        print(rightAlign("  Destination: " + destPath, destDecl.getIdentifierStr()))
+
+        if not destDecl.enabled:
+            print("  " + destFile + " skipped, the destination '" + destID + "' was not enabled!")
+            continue
 
         if destDecl.id == "local":
             successful = lUpload(destDecl, srcPath, destPath)
@@ -281,6 +320,6 @@ for fileDef in selectedFiles:
             successful = upload(destDecl, srcPath, destPath)
 
         if (successful):
-            print(destFile + " processed successfully!")
+            print("  " + destFile + " processed successfully!")
         else:
-            print("Processing of " + destFile + " was unsuccessful!")
+            print("  Processing of " + destFile + " was unsuccessful!")

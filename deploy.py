@@ -22,22 +22,46 @@ import socket
 import sys
 import os
 import re
+import shutil
 import paramiko
 from operator import itemgetter
 from getpass import getpass
 
 class Destination:
-    def __init__(self, id, user, addr):
+    def __init__(self, id):
         self.id = id
+
+    def getIdentifierStr(self):
+        return "[" + self.id + "]"
+
+class RemoteDestination(Destination):
+    def __init__(self, id, user, addr):
+        super().__init__(id)
         self.user = user
         self.addr = addr
         self.password = None
+        self.deriveRemoteDetails()
+
+    def deriveRemoteDetails(self):
+        hostname = self.addr
+        port = 22
+
+        if hostname.find(':') >= 0:
+            hostname, portstr = hostname.split(':')
+            port = int(portstr)
+
+        self.hostname = hostname
+        self.port = port
 
     def setPass(self, password):
         self.password = password
 
-    def getPass(self):
-        return self.password
+    def getIdentifierStr(self):
+        return "[" + self.id + " - " + self.hostname + ":" + str(self.port) + "]"
+
+class LocalDestination(Destination):
+    def __init__(self):
+        super().__init__("local")
 
 class Path:
     def __init__(self, id, name, dir):
@@ -60,9 +84,9 @@ class FileDefinition:
 #Functions
 
 def getDestinations(val):
-    destinationMap = dict()
+    destinationMap = {'local' : LocalDestination()}
     for dest in val['destinations']:
-        destinationMap[dest['id']] = Destination(dest['id'], dest['user'], dest['addr'])
+        destinationMap[dest['id']] = RemoteDestination(dest['id'], dest['user'], dest['addr'])
 
     return destinationMap
 
@@ -143,14 +167,7 @@ def mostRecentMatch(srcDir, srcFile):
 
     return sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
 
-def deriveRemoteDetails(hostname):
-    port = 22
 
-    if hostname.find(':') >= 0:
-        hostname, portstr = hostname.split(':')
-        port = int(portstr)
-
-    return hostname, port
 
 def getHostKeyData(hostname):
     hostKeyType = None
@@ -174,66 +191,81 @@ def promptForPass():
     return getpass("Enter password: ")
 
 def getPass(dest):
-    if dest.getPass() == None:
+    if dest.password == None:
         dest.setPass(promptForPass())
 
-    return dest.getPass()
+    return dest.password
+
+def lUpload(destDecl, srcPath, destPath):
+    shutil.copyfile(srcPath, destPath)
 
 def renameUpload(sftp, src, dest):
     sftp.put(src, dest + ".temp")
     sftp.remove(dest);
     sftp.rename(dest + ".temp", dest)
 
+def upload(destDecl, srcPath, destPath):
+    username = destDecl.user
+    hostname = destDecl.hostname
+    port = destDecl.port
+
+    hostKey, hostKeyType = getHostKeyData(hostname)
+
+    if hostKey != None and hostKeyType != None:
+        print("Using host key of type " + hostKeyType)
+    else:
+        print("Failed to find a valid host key, cancelled!")
+        sys.exit(2)
+
+    try:
+        t = paramiko.Transport((hostname, port))
+
+        t.connect(hostKey, username, getPass(destDecl))
+        # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
+        #           gss_auth=True, gss_kex=True)
+        sftp = paramiko.SFTPClient.from_transport(t)
+
+        renameUpload(sftp, srcPath, destPath)
+
+        t.close()
+    except Exception as e:
+        print('*** Caught exception: %s: %s' % (e.__class__, e))
+        traceback.print_exc()
+        try:
+            t.close()
+        except:
+            pass
+        sys.exit(1)
+
 # Operation
 
 for fileDef in selectedFiles:
     fileID = fileDef.id
-    srcID = fileDef.src.id
-    srcDir = fileDef.src.dir
-    srcFile = mostRecentMatch(srcDir, fileDef.src.name)
+    fileSrc = fileDef.src
+    srcDecl = destinations[fileSrc.id]
+
+    srcDir = fileSrc.dir
+    srcFile = mostRecentMatch(srcDir, fileSrc.name)
+    srcPath = createPath(srcDir, srcFile)
 
     print("\nUploading " + fileID + " (" + srcFile + ")...")
-    print(rightAlign("File source: " + createPath(srcDir, srcFile), "[" + srcID + "]"))
+    print(rightAlign("File source: " + srcPath, srcDecl.getIdentifierStr()))
 
     for fileDest in fileDef.dests:
         destDecl = destinations[fileDest.id]
 
-        destID = fileDest.id
+        if destDecl == None:
+            print("Invalid remote specified, skipping!")
+
         destDir = fileDest.dir
         destFile = fileDest.name
+        destPath = createPath(destDir, destFile)
 
-        username = destDecl.user
-        hostname, port = deriveRemoteDetails(destDecl.addr)
+        print(rightAlign("Destination: " + destPath, destDecl.getIdentifierStr()))
 
-        print(rightAlign("Destination: " + createPath(destDir, destFile), "[" + destID + " - " + hostname + ":" + str(port) + "]"))
-
-        hostKey, hostKeyType = getHostKeyData(hostname)
-
-        if hostKey != None and hostKeyType != None:
-            print("Using host key of type " + hostKeyType)
+        if destDecl.id == "local":
+            lUpload(destDecl, srcPath, destPath)
         else:
-            print("Failed to find a valid host key, cancelled!")
-            sys.exit(2)
+            upload(destDecl, srcPath, destPath)
 
-        try:
-            t = paramiko.Transport((hostname, port))
-
-            t.connect(hostKey, username, getPass(destDecl))
-            # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
-            #           gss_auth=True, gss_kex=True)
-            sftp = paramiko.SFTPClient.from_transport(t)
-
-            renameUpload(sftp, createPath(srcDir, srcFile), createPath(destDir, destFile))
-
-            print(destFile + " uploaded successfully!")
-
-            t.close()
-
-        except Exception as e:
-            print('*** Caught exception: %s: %s' % (e.__class__, e))
-            traceback.print_exc()
-            try:
-                t.close()
-            except:
-                pass
-            sys.exit(1)
+        print(destFile + " processed successfully!")

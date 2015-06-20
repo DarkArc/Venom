@@ -23,6 +23,21 @@
       ]
     },
     {
+      "id": "Skree Batch",
+      "src": {
+        "id": "local",
+        "name": "skree_batch.txt",
+        "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
+      },
+      "dest": [
+        {
+          "id": "local",
+          "name": "skree_batch_is_amazing.txt",
+          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment"
+        }
+      ]
+    },
+    {
       "id": "Skree",
       "src": {
         "id": "local",

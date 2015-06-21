@@ -6,7 +6,7 @@
       "addr": "server.skelril.com"
     }
   ],
-  "files": [
+  "targets": [
     {
       "id": "Skree",
       "src": {

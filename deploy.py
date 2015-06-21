@@ -70,7 +70,7 @@ class Path:
         self.name = name
         self.dir = dir
 
-class FileDefinition:
+class TargetDefinition:
     def __init__(self, id, src, dests):
         self.id = id
         self.src = src
@@ -91,18 +91,18 @@ def getDestinations(val):
 
     return destinationMap
 
-def getFileDefs(val):
-    fileDefs = []
-    for fileDef in val['files']:
-        srcDict = fileDef['src']
+def getTargetDefs(val):
+    targetDefs = []
+    for targetDef in val['targets']:
+        srcDict = targetDef['src']
 
         dests = []
-        for dest in fileDef['dest']:
+        for dest in targetDef['dest']:
             dests.append(Path(dest['id'], dest['name'], dest['dir']))
 
-        fileDefs.append(FileDefinition(fileDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
+        targetDefs.append(TargetDefinition(targetDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
 
-    return fileDefs
+    return targetDefs
 
 # Operation
 
@@ -110,39 +110,39 @@ data = open('test_deploy.json')
 val = json.load(data)
 
 destinations = getDestinations(val)
-fileDefs = getFileDefs(val)
+targetDefs = getTargetDefs(val)
 
 ################################################################################
 #                                                                              #
-# File Selection                                                               #
+# Target Selection                                                               #
 #                                                                              #
 ################################################################################
 
 # Functions
 
-def listFiles(fileDefs):
-    print("Avalible files:")
-    for index, fileDef in enumerate(fileDefs):
-        print(str(index + 1) + ") " + fileDef.id)
-    print("\nNote: Select files by their listed ID number seperated by a space, or * for all")
-    return fileDefs
+def listTargets(targetDefs):
+    print("Avalible targets:")
+    for index, targetDef in enumerate(targetDefs):
+        print(str(index + 1) + ") " + targetDef.id)
+    print("\nNote: Select targets by their listed ID number seperated by a space, or * for all")
+    return targetDefs
 
-def promptForFiles():
-    return input("Please select the files which you wish to upload: ")
+def promptForTargets():
+    return input("Please select the targets which you wish to upload: ")
 
-def selectFiles(fileDefs):
-    selectedFiles = []
-    for ID in promptForFiles().split():
+def selectTargets(targetDefs):
+    selectedTargets = []
+    for ID in promptForTargets().split():
         if ID == "*":
-            selectedFiles = fileDefs
+            selectedTargets = targetDefs
             break
-        selectedFiles.append(fileDefs[int(ID) - 1])
+        selectedTargets.append(targetDefs[int(ID) - 1])
 
-    return selectedFiles
+    return selectedTargets
 
 # Operation
 
-selectedFiles = selectFiles(listFiles(fileDefs))
+selectedTargets = selectTargets(listTargets(targetDefs))
 
 ################################################################################
 #                                                                              #
@@ -174,8 +174,8 @@ def selectDestinations(dests):
 
 def askDestinationSelectionMode():
     print("Destination modes:");
-    print("1) Global - One prompt (may prevent some files from uploading)")
-    print("2) Individual - Each file prompots")
+    print("1) Global - One prompt (may prevent some targets from uploading)")
+    print("2) Individual - Each target prompots")
 
     print("\nNote: Select mode by its listed ID number")
     return int(input("Please choose a mode: "))
@@ -186,24 +186,24 @@ if globalSelection:
 
 ################################################################################
 #                                                                              #
-# File Upload                                                                  #
+# Target Upload                                                                  #
 #                                                                              #
 ################################################################################
 
 # Functions
 
-def createPath(dir, file):
-    return dir + "/" + file
+def createPath(dir, target):
+    return dir + "/" + target
 
 def rightAlign(mainText, rightColumn):
     columns, lines = os.get_terminal_size()
     return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
 
-def mostRecentMatch(srcDir, srcFile):
+def mostRecentMatch(srcDir, srcTarget):
     matchCandidates = []
 
     for fEntry in os.listdir(srcDir):
-        if re.match(srcFile, fEntry):
+        if re.match(srcTarget, fEntry):
             matchCandidates.append((fEntry, os.path.getmtime(srcDir + "/" + fEntry)))
 
     return sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
@@ -238,7 +238,7 @@ def getPass(dest):
     return dest.password
 
 def lUpload(destDecl, srcPath, destPath):
-    shutil.copyfile(srcPath, destPath)
+    shutil.copytarget(srcPath, destPath)
     return True
 
 def renameUpload(sftp, src, dest):
@@ -292,23 +292,23 @@ def upload(destDecl, srcPath, destPath):
 
 # Operation
 
-for fileDef in selectedFiles:
-    fileID = fileDef.id
-    fileSrc = fileDef.src
-    srcDecl = destinations[fileSrc.id]
+for targetDef in selectedTargets:
+    targetID = targetDef.id
+    targetSrc = targetDef.src
+    srcDecl = destinations[targetSrc.id]
 
-    srcDir = fileSrc.dir
-    srcFile = mostRecentMatch(srcDir, fileSrc.name)
-    srcPath = createPath(srcDir, srcFile)
+    srcDir = targetSrc.dir
+    srcTarget = mostRecentMatch(srcDir, targetSrc.name)
+    srcPath = createPath(srcDir, srcTarget)
 
-    print("\nUploading " + fileID + " (" + srcFile + ")...")
-    print(rightAlign("File source: " + srcPath, srcDecl.getIdentifierStr()))
+    print("\nUploading " + targetID + " (" + srcTarget + ")...")
+    print(rightAlign("Target source: " + srcPath, srcDecl.getIdentifierStr()))
 
     if not globalSelection:
-        selectDestinations(listDestinations(fileDef.dests))
+        selectDestinations(listDestinations(targetDef.dests))
 
-    for fileDest in fileDef.dests:
-        destDecl = destinations[fileDest.id]
+    for targetDest in targetDef.dests:
+        destDecl = destinations[targetDest.id]
 
         if destDecl == None:
             print("  Invalid remote specified, skipping!")
@@ -316,9 +316,9 @@ for fileDef in selectedFiles:
         if not destDecl.enabled:
             continue
 
-        destDir = fileDest.dir
-        destFile = fileDest.name
-        destPath = createPath(destDir, destFile)
+        destDir = targetDest.dir
+        destTarget = targetDest.name
+        destPath = createPath(destDir, destTarget)
 
         print(rightAlign("  Destination: " + destPath, destDecl.getIdentifierStr()))
 
@@ -329,6 +329,6 @@ for fileDef in selectedFiles:
             successful = upload(destDecl, srcPath, destPath)
 
         if (successful):
-            print("  " + destFile + " processed successfully!")
+            print("  " + destTarget + " processed successfully!")
         else:
-            print("  Processing of " + destFile + " was unsuccessful!")
+            print("  Processing of " + destTarget + " was unsuccessful!")

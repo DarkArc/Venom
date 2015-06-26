@@ -238,7 +238,7 @@ def getPass(dest):
     return dest.password
 
 def lUpload(destDecl, srcPath, destPath):
-    shutil.copytarget(srcPath, destPath)
+    shutil.copyfile(srcPath, destPath)
     return True
 
 def renameUpload(sftp, src, dest):

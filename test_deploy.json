@@ -24,6 +24,11 @@
           "id": "local",
           "name": "Skree.jar",
           "dir": "/home/wyatt/.skelrillauncher/instances/Skelril Core/minecraft/mods"
+        },
+        {
+          "id": "local",
+          "name": "Skree.jar",
+          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment/Packs/SkelCore/src/mods/"
         }
       ]
     },
@@ -44,6 +49,11 @@
           "id": "local",
           "name": "Sponge.jar",
           "dir": "/home/wyatt/.skelrillauncher/instances/Skelril Core/minecraft/mods"
+        },
+        {
+          "id": "local",
+          "name": "Sponge.jar",
+          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment/Packs/SkelCore/src/mods/"
         }
       ]
     }

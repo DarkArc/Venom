@@ -1,0 +1,31 @@
+# News
+
+## Build 15.7.28.1
+
+### Features
+* /teleport has been replaced by two Skelril commands
+    * /teleport (aliases: /tp) - Teleports the sender to a player or location
+    * /bring (aliases: /br) - Teleports the target player to the sender
+    * Both commands will protect players from falling out of the sky if the teleported player is not capable of flight/invulnerable
+* The Skull of The Fallen now provides information about the drop table modifiers
+
+### Bug Fixes
+* Fixed a potential bug where drop tables could be too rewarding
+
+## Build 15.7.27.1
+
+### Features
+* /gamemode has been replaced by a Skelril commands
+    * When switching gamemodes the player will now have their previous gamemode's inventory stored
+        * This data will persist after sever crashes
+        * This data will persist after server restarts
+    * Gamemodes are now specified by their name, and support tab complete
+
+## Build 15.7.26.3
+
+### Features
+* Coffer item stacks now display their value in the tooltip
+* Support for the Double Wilderness Drops modifier has been added
+
+### Bug Fixes
+* "Mesardith Cofer" is now correctly identified as "Mesardith Coffer"

@@ -1,4 +1,0 @@
-cd /home/Server/ftp/
-lcd ../../SpongePowered/Sponge/build/libs/
-put *DEV-0.jar Sponge-Uploading.jar
-rename Sponge-Uploading.jar Sponge.jar

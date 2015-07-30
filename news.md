@@ -1,8 +1,13 @@
 # News
 
+## Build 15.7.29.1
+
+### Tweaks
+* Simplified the Skull of The Fallen's concept of mob drop modifiers
+
 ## Build 15.7.28.1
 
-### Features
+### New Features
 * /teleport has been replaced by two Skelril commands
     * /teleport (aliases: /tp) - Teleports the sender to a player or location
     * /bring (aliases: /br) - Teleports the target player to the sender
@@ -14,7 +19,7 @@
 
 ## Build 15.7.27.1
 
-### Features
+### New Features
 * /gamemode has been replaced by a Skelril commands
     * When switching gamemodes the player will now have their previous gamemode's inventory stored
         * This data will persist after sever crashes
@@ -23,7 +28,7 @@
 
 ## Build 15.7.26.3
 
-### Features
+### New Features
 * Coffer item stacks now display their value in the tooltip
 * Support for the Double Wilderness Drops modifier has been added
 

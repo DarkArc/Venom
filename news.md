@@ -1,5 +1,12 @@
 # News
 
+## Build 15.8.1.1
+
+### New Features
+* Instances can now be tested via /zoneme <instance name>
+* WorldEdit is now included in the mod pack
+* WorldEdit CUI has been added as an optional dependency
+
 ## Build 15.7.29.1
 
 ### Tweaks

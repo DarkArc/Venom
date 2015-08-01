@@ -18,7 +18,7 @@
         {
           "id": "skelril",
           "name": "Skree.jar",
-          "dir": "/home/Server/ftp"
+          "dir": "/home/Server/mods"
         },
         {
           "id": "local",
@@ -43,7 +43,7 @@
         {
           "id": "skelril",
           "name": "Sponge.jar",
-          "dir": "/home/Server/ftp"
+          "dir": "/home/Server/mods"
         },
         {
           "id": "local",

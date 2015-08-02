@@ -1,5 +1,11 @@
 # News
 
+## Build 15.8.2.1
+
+### Bug Fixes
+* You can now use a fishing rod without crashing your client
+* You can now use a lead without crashing your client
+
 ## Build 15.8.1.1
 
 ### New Features

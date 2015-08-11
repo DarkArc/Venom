@@ -83,6 +83,16 @@ class TargetDefinition:
 
 # Functions
 
+def getDataFile():
+    if len(sys.argv) != 2:
+        print("Invalid number of arguments, a deploy file must be provided.")
+        sys.exit(1)
+    dataFile = sys.argv[1]
+    if not os.path.exists(dataFile):
+        print("Inavlid deploy file provided, the file could not be found.")
+        sys.exit(1)
+    return dataFile
+
 def getDestinations(val):
     destinationMap = {'local' : LocalDestination()}
     for dest in val['destinations']:
@@ -105,7 +115,7 @@ def getTargetDefs(val):
 
 # Operation
 
-data = open('test_deploy.json')
+data = open(getDataFile())
 val = json.load(data)
 
 destinations = getDestinations(val)

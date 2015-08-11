@@ -30,6 +30,8 @@ from operator import itemgetter, attrgetter
 from paramiko import SFTPClient
 from paramiko.ssh_exception import AuthenticationException
 
+# Used for the destination declarations
+
 class Destination:
     def __init__(self, id):
         self.id = id
@@ -63,17 +65,89 @@ class LocalDestination(Destination):
     def __init__(self):
         super().__init__("local")
 
-class Path:
-    def __init__(self, id, name, dir):
+class DestDecl:
+    def __init__(self, id, dir):
         self.id = id
-        self.name = name
         self.dir = dir
 
-class TargetDefinition:
-    def __init__(self, id, src, dests):
+class Source:
+    def __init__(self, id, dir):
+        self.id = id
+        self.dir = dir
+
+class FileSource(Source):
+    def __init__(self, id, expr, dir):
+        super().__init__(id, dir)
+        self.expr = expr
+
+class MapSource(Source):
+    def __init__(self, id, dir, exclusions):
+        super().__init__(id, dir)
+        self.exclusions = exclusions
+
+class Target:
+    def __init__(self, id, src, destDecls):
         self.id = id
         self.src = src
-        self.dests = dests
+        self.destDecls = destDecls
+
+class FileTarget(Target):
+    def __init__(self, id, name, src, destDecls):
+        super().__init__(id, src, destDecls)
+        self.name = name
+
+    def getFiles(self):
+        matchCandidates = []
+
+        for fEntry in os.listdir(self.src.dir):
+            if re.match(self.src.expr, fEntry):
+                fPath = os.path.join(self.src.dir, fEntry)
+                matchCandidates.append((fPath, os.path.getmtime(fPath)))
+
+        return [sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]]
+
+    def send(self, destDecl, filePath):
+        if self.src.id != "local":
+            raise NotImplementedError("Source must be local")
+
+        destFile = os.path.join(destDecl.dir, self.name)
+
+        if destDecl.id == "local":
+            lUpload(filePath, destFile)
+        else:
+            upload(destinations[destDecl.id], filePath, destFile)
+
+class MapTarget(Target):
+    def __init__(self, id, mode, src, destDecls):
+        super().__init__(id, src, destDecls)
+        self.mode = mode
+
+    def getFiles(self):
+        results = []
+
+        for fDir, fSubDir, fNames in os.walk(self.src.dir):
+            for fName in fNames:
+                matched = False
+                for exclusion in self.src.exclusions:
+                    if re.match(exclusion, os.path.join(fDir, fName)):
+                        matched = True
+                        break
+                if not matched:
+                    results.append(os.path.join(fDir, fName))
+
+        return results
+
+    def send(self, destDecl, filePath):
+        if self.src.id != "local":
+            raise NotImplementedError("Source must be local")
+
+        dirPart = re.match(self.src.dir + "(.*)", filePath).group(1)
+        destFile = os.path.join(destDecl.dir, dirPart)
+
+        if destDecl.id == "local":
+            lUpload(filePath, destFile)
+        else:
+            upload(destinations[destDecl.id], filePath, destFile, skipIfExists = self.mode == "exists")
 
 ################################################################################
 #                                                                              #
@@ -102,14 +176,27 @@ def getDestinations(val):
 
 def getTargetDefs(val):
     targetDefs = []
-    for targetDef in val['targets']:
-        srcDict = targetDef['src']
+    targetDef = val['targets']
+
+    # File definitions
+    for fileDef in targetDef['files']:
+        srcDict = fileDef['src']
 
         dests = []
-        for dest in targetDef['dest']:
-            dests.append(Path(dest['id'], dest['name'], dest['dir']))
+        for dest in fileDef['dest']:
+            dests.append(DestDecl(dest['id'], dest['dir']))
 
-        targetDefs.append(TargetDefinition(targetDef['id'], Path(srcDict['id'], srcDict['name'], srcDict['dir']), dests))
+        targetDefs.append(FileTarget(fileDef['id'], fileDef['name'], FileSource(srcDict['id'], srcDict['expr'], srcDict['dir']), dests))
+
+    # Mapping definitions
+    for mappingDef in targetDef['mappings']:
+        srcDict = mappingDef['src']
+
+        dests = []
+        for dest in mappingDef['dest']:
+            dests.append(DestDecl(dest['id'], dest['dir']))
+
+        targetDefs.append(MapTarget(mappingDef['id'], mappingDef['mode'], MapSource(srcDict['id'], srcDict['dir'], srcDict['exclusion']), dests))
 
     return targetDefs
 
@@ -132,15 +219,6 @@ targetDefs = getTargetDefs(val)
 def rightAlign(mainText, rightColumn):
     columns, lines = os.get_terminal_size()
     return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
-
-def mostRecentMatch(srcDir, srcTarget):
-    matchCandidates = []
-
-    for fEntry in os.listdir(srcDir):
-        if re.match(srcTarget, fEntry):
-            matchCandidates.append((fEntry, os.path.getmtime(os.path.join(srcDir, fEntry))))
-
-    return sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
 
 def getHostKeyData(hostname):
     hostKeyType = None
@@ -169,7 +247,7 @@ def getPass(dest):
 
     return dest.password
 
-def lUpload(destDecl, srcPath, destPath):
+def lUpload(srcPath, destPath):
     shutil.copyfile(srcPath, destPath)
     return True
 
@@ -178,16 +256,14 @@ def renameUpload(sftp, src, dest):
     sftp.remove(dest);
     sftp.rename(dest + ".temp", dest)
 
-def upload(destDecl, srcPath, destPath):
-    username = destDecl.user
-    hostname = destDecl.hostname
-    port = destDecl.port
+def upload(dest, srcPath, destPath, skipIfExists = False):
+    username = dest.user
+    hostname = dest.hostname
+    port = dest.port
 
     hostKey, hostKeyType = getHostKeyData(hostname)
 
-    if hostKey != None and hostKeyType != None:
-        print("  Using host key of type " + hostKeyType)
-    else:
+    if hostKey == None or hostKeyType == None:
         print("  Failed to find a valid host key, cancelled!")
         sys.exit(2)
 
@@ -196,13 +272,30 @@ def upload(destDecl, srcPath, destPath):
         try:
             t = paramiko.Transport((hostname, port))
 
-            t.connect(hostKey, username, getPass(destDecl))
+            t.connect(hostKey, username, getPass(dest))
             # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
             #           gss_auth=True, gss_kex=True)
 
             attempts = -1
 
-            renameUpload(SFTPClient.from_transport(t), srcPath, destPath)
+            sftp = SFTPClient.from_transport(t)
+
+            # This is pretty awful, if the file doesn't exists it throws
+            # an exception, and then we should continue
+
+            # Assume true
+            exists = True
+
+            if skipIfExists:
+                try:
+                    sftp.stat(destPath)
+                except IOError as e:
+                    exists = False
+                    if e[0] != 2:
+                        pass
+
+            if not skipIfExists or not exists:
+                renameUpload(sftp, srcPath, destPath)
 
             t.close()
 
@@ -210,7 +303,7 @@ def upload(destDecl, srcPath, destPath):
         except AuthenticationException as e:
             attempts += 1
             print("  Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
-            destDecl.password = None
+            dest.password = None
         except Exception as e:
             print('*** Caught exception: %s: %s' % (e.__class__, e))
             traceback.print_exc()
@@ -223,38 +316,14 @@ def upload(destDecl, srcPath, destPath):
     return False
 
 # Operation
+for target in targetDefs:
+    print("Processing target " + target.id + "...")
+    filePaths = target.getFiles()
+    for filePath in filePaths:
+        for destDecl in target.destDecls:
+            idStr = destinations[destDecl.id].getIdentifierStr()
+            print(rightAlign("  Tranfering " + filePath + "...", idStr), end='\r')
+            target.send(destDecl, filePath)
+            print(rightAlign("    " + filePath + " done!", idStr))
 
-for targetDef in targetDefs:
-    targetID = targetDef.id
-    targetSrc = targetDef.src
-    srcDecl = destinations[targetSrc.id]
-
-    srcDir = targetSrc.dir
-    srcTarget = mostRecentMatch(srcDir, targetSrc.name)
-    srcPath = os.path.join(srcDir, srcTarget)
-
-    print("\nUploading " + targetID + " (" + srcTarget + ")...")
-    print(rightAlign("Target source: " + srcPath, srcDecl.getIdentifierStr()))
-
-    for targetDest in targetDef.dests:
-        destDecl = destinations[targetDest.id]
-
-        if destDecl == None:
-            print("  Invalid remote specified, skipping!")
-
-        destDir = targetDest.dir
-        destTarget = targetDest.name
-        destPath = createPath(destDir, destTarget)
-
-        print(rightAlign("  Destination: " + destPath, destDecl.getIdentifierStr()))
-
-
-        if destDecl.id == "local":
-            successful = lUpload(destDecl, srcPath, destPath)
-        else:
-            successful = upload(destDecl, srcPath, destPath)
-
-        if (successful):
-            print("  " + destTarget + " processed successfully!")
-        else:
-            print("  Processing of " + destTarget + " was unsuccessful!")
+print("Process completed successfully!")

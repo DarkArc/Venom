@@ -1,0 +1,48 @@
+{
+  "destinations": [
+    {
+      "id": "skelril",
+      "user": "Dark_Arc",
+      "addr": "server.skelril.com"
+    }
+  ],
+  "targets": {
+    "files": [],
+    "mappings": [
+      {
+        "id": "Launcher Files",
+        "mode": "exists",
+        "src": {
+          "id": "local",
+          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment/Active/",
+          "exclusion": [
+            ".*/Active/.*\\.(html|json)"
+          ]
+        },
+        "dest": [
+          {
+            "id": "skelril",
+            "dir": "/home/Server/html/Launcher"
+          }
+        ]
+      },
+      {
+        "id": "Launcher Status Files",
+        "mode": "overwrite",
+        "src": {
+          "id": "local",
+          "dir": "/home/wyatt/Dev/MineCraft/Skelril/Deployment/Active/",
+          "exclusion": [
+            ".*/Active/.*/.*"
+          ]
+        },
+        "dest": [
+          {
+            "id": "skelril",
+            "dir": "/home/Server/html/Launcher"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -145,7 +145,7 @@ class MapTarget(Target):
         destFile = os.path.join(destDecl.dir, dirPart)
 
         if destDecl.id == "local":
-            lUpload(filePath, destFile)
+            lUpload(filePath, destFile, skipIfExists = self.mode == "exists")
         else:
             upload(destinations[destDecl.id], filePath, destFile, skipIfExists = self.mode == "exists")
 
@@ -247,7 +247,13 @@ def getPass(dest):
 
     return dest.password
 
-def lUpload(srcPath, destPath):
+def lUpload(srcPath, destPath, skipIfExists):
+    if skipIfExists and os.path.exists(destPath):
+        return True
+
+    destDir = os.path.dirname(destPath)
+    if not os.path.exists(destDir):
+        os.makedirs(destDir)
     shutil.copyfile(srcPath, destPath)
     return True
 

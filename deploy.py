@@ -129,9 +129,6 @@ targetDefs = getTargetDefs(val)
 
 # Functions
 
-def createPath(dir, target):
-    return dir + "/" + target
-
 def rightAlign(mainText, rightColumn):
     columns, lines = os.get_terminal_size()
     return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
@@ -141,11 +138,9 @@ def mostRecentMatch(srcDir, srcTarget):
 
     for fEntry in os.listdir(srcDir):
         if re.match(srcTarget, fEntry):
-            matchCandidates.append((fEntry, os.path.getmtime(srcDir + "/" + fEntry)))
+            matchCandidates.append((fEntry, os.path.getmtime(os.path.join(srcDir, fEntry))))
 
     return sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]
-
-
 
 def getHostKeyData(hostname):
     hostKeyType = None
@@ -236,7 +231,7 @@ for targetDef in targetDefs:
 
     srcDir = targetSrc.dir
     srcTarget = mostRecentMatch(srcDir, targetSrc.name)
-    srcPath = createPath(srcDir, srcTarget)
+    srcPath = os.path.join(srcDir, srcTarget)
 
     print("\nUploading " + targetID + " (" + srcTarget + ")...")
     print(rightAlign("Target source: " + srcPath, srcDecl.getIdentifierStr()))

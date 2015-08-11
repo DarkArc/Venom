@@ -33,7 +33,6 @@ from paramiko.ssh_exception import AuthenticationException
 class Destination:
     def __init__(self, id):
         self.id = id
-        self.enabled = False
 
     def getIdentifierStr(self):
         return "[" + self.id + "]"
@@ -111,78 +110,6 @@ val = json.load(data)
 
 destinations = getDestinations(val)
 targetDefs = getTargetDefs(val)
-
-################################################################################
-#                                                                              #
-# Target Selection                                                             #
-#                                                                              #
-################################################################################
-
-# Functions
-
-def listTargets(targetDefs):
-    print("Avalible targets:")
-    for index, targetDef in enumerate(targetDefs):
-        print(str(index + 1) + ") " + targetDef.id)
-    print("\nNote: Select targets by their listed ID number seperated by a space, or * for all")
-    return targetDefs
-
-def promptForTargets():
-    return input("Please select the targets which you wish to upload: ")
-
-def selectTargets(targetDefs):
-    selectedTargets = []
-    for ID in promptForTargets().split():
-        if ID == "*":
-            selectedTargets = targetDefs
-            break
-        selectedTargets.append(targetDefs[int(ID) - 1])
-
-    return selectedTargets
-
-# Operation
-
-selectedTargets = selectTargets(listTargets(targetDefs))
-
-################################################################################
-#                                                                              #
-# Destination Selection                                                        #
-#                                                                              #
-################################################################################
-
-# Functions
-
-def listDestinations(dests):
-    print("Avalible destinations:")
-    values = sorted(dests, key = attrgetter('id'))
-    for index, dest in enumerate(values):
-        print(str(index + 1) + ") " + dest.id)
-    print("\nNote: Select destinations by their listed ID number seperated by a space, or * for all")
-    return values
-
-def promptForDestinations():
-    return input("Please select the destinations which you wish to upload to: ")
-
-def selectDestinations(dests):
-    global destinations
-    for ID in promptForDestinations().split():
-        if ID == "*":
-            for dest in dests:
-                destinations[dest.id].enabled = True
-            break
-        destinations[dests[int(ID) - 1].id].enabled = True
-
-def askDestinationSelectionMode():
-    print("Destination modes:");
-    print("1) Global - One prompt (may prevent some targets from uploading)")
-    print("2) Individual - Each target prompots")
-
-    print("\nNote: Select mode by its listed ID number")
-    return int(input("Please choose a mode: "))
-
-globalSelection = askDestinationSelectionMode() == 1
-if globalSelection:
-    selectDestinations(listDestinations(list(destinations.values())))
 
 ################################################################################
 #                                                                              #
@@ -292,7 +219,7 @@ def upload(destDecl, srcPath, destPath):
 
 # Operation
 
-for targetDef in selectedTargets:
+for targetDef in targetDefs:
     targetID = targetDef.id
     targetSrc = targetDef.src
     srcDecl = destinations[targetSrc.id]
@@ -304,17 +231,11 @@ for targetDef in selectedTargets:
     print("\nUploading " + targetID + " (" + srcTarget + ")...")
     print(rightAlign("Target source: " + srcPath, srcDecl.getIdentifierStr()))
 
-    if not globalSelection:
-        selectDestinations(listDestinations(targetDef.dests))
-
     for targetDest in targetDef.dests:
         destDecl = destinations[targetDest.id]
 
         if destDecl == None:
             print("  Invalid remote specified, skipping!")
-
-        if not destDecl.enabled:
-            continue
 
         destDir = targetDest.dir
         destTarget = targetDest.name

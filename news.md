@@ -1,5 +1,13 @@
 # News
 
+## Build 15.8.8.1
+
+### New Features
+* Explosions will now trigger ore pools
+
+### Tweaks
+* Red Shards are now dropped in place of the extra Redstone drop in the Wilderness
+
 ## Build 15.8.2.1
 
 ### Bug Fixes

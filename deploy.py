@@ -247,7 +247,7 @@ def getPass(dest):
 
     return dest.password
 
-def lUpload(srcPath, destPath, skipIfExists):
+def lUpload(srcPath, destPath, skipIfExists = False):
     if skipIfExists and os.path.exists(destPath):
         return True
 

@@ -45,6 +45,7 @@ class RemoteDestination(Destination):
         self.user = user
         self.addr = addr
         self.password = None
+        self.connection = None
         self.deriveRemoteDetails()
 
     def deriveRemoteDetails(self):
@@ -247,65 +248,34 @@ def getPass(dest):
 
     return dest.password
 
-def lUpload(srcPath, destPath, skipIfExists = False):
-    if skipIfExists and os.path.exists(destPath):
-        return True
+def authenticate(dest):
+    print(rightAlign("Authenticating...", dest.getIdentifierStr()))
 
-    destDir = os.path.dirname(destPath)
-    if not os.path.exists(destDir):
-        os.makedirs(destDir)
-    shutil.copyfile(srcPath, destPath)
-    return True
-
-def renameUpload(sftp, src, dest):
-    sftp.put(src, dest + ".temp")
-    sftp.remove(dest);
-    sftp.rename(dest + ".temp", dest)
-
-def upload(dest, srcPath, destPath, skipIfExists = False):
-    username = dest.user
-    hostname = dest.hostname
-    port = dest.port
-
-    hostKey, hostKeyType = getHostKeyData(hostname)
-
-    if hostKey == None or hostKeyType == None:
-        print("  Failed to find a valid host key, cancelled!")
-        sys.exit(2)
+    if dest.id == "local":
+        return
 
     attempts = 0
     while not (attempts >= 3 or attempts == -1):
         try:
-            t = paramiko.Transport((hostname, port))
+            username = dest.user
+            hostname = dest.hostname
+            port = dest.port
 
-            t.connect(hostKey, username, getPass(dest))
+            hostKey, hostKeyType = getHostKeyData(hostname)
+
+            if hostKey == None or hostKeyType == None:
+                print("  Failed to find a valid host key, cancelled!")
+                sys.exit(2)
+
+            dest.connection = paramiko.Transport((hostname, port))
+
+            dest.connection.connect(hostKey, username, getPass(dest))
+
             # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
             #           gss_auth=True, gss_kex=True)
 
-            attempts = -1
+            break
 
-            sftp = SFTPClient.from_transport(t)
-
-            # This is pretty awful, if the file doesn't exists it throws
-            # an exception, and then we should continue
-
-            # Assume true
-            exists = True
-
-            if skipIfExists:
-                try:
-                    sftp.stat(destPath)
-                except IOError as e:
-                    exists = False
-                    if e[0] != 2:
-                        pass
-
-            if not skipIfExists or not exists:
-                renameUpload(sftp, srcPath, destPath)
-
-            t.close()
-
-            return True
         except AuthenticationException as e:
             attempts += 1
             print("  Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
@@ -319,7 +289,83 @@ def upload(dest, srcPath, destPath, skipIfExists = False):
                 t.close()
             except:
                 pass
+
+def closeConnection(dest):
+    if dest.id == "local":
+        return
+
+    dest.connection.close()
+
+def lUpload(srcPath, destPath, skipIfExists = False):
+    if skipIfExists and os.path.exists(destPath):
+        return True
+
+    destDir = os.path.dirname(destPath)
+    if not os.path.exists(destDir):
+        os.makedirs(destDir)
+    shutil.copyfile(srcPath, destPath)
+    return True
+
+def renameUpload(sftp, src, dest):
+    targDir = os.path.dirname(dest)
+    dirStack = [targDir]
+
+    while True:
+        curDir = dirStack.pop()
+        try:
+            sftp.stat(curDir)
+            break
+        except FileNotFoundError as e:
+            dirStack.append(curDir)
+            dirStack.append(os.path.split(curDir)[0])
+
+    while len(dirStack) != 0:
+        dir = dirStack.pop()
+        sftp.mkdir(dir)
+
+    sftp.put(src, dest + ".temp")
+    try:
+        sftp.stat(dest)
+        sftp.remove(dest)
+    except FileNotFoundError as e:
+        pass
+
+    sftp.rename(dest + ".temp", dest)
+
+def upload(dest, srcPath, destPath, skipIfExists = False):
+    try:
+        sftp = SFTPClient.from_transport(dest.connection)
+
+        # This is pretty awful, if the file doesn't exists it throws
+        # an exception, and then we should continue
+
+        # Assume true
+        exists = True
+
+        if skipIfExists:
+            try:
+                sftp.stat(destPath)
+            except FileNotFoundError as e:
+                exists = False
+
+        if not skipIfExists or not exists:
+            renameUpload(sftp, srcPath, destPath)
+
+        return True
+    except Exception as e:
+        print('*** Caught exception: %s: %s' % (e.__class__, e))
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        try:
+            t.close()
+        except:
+            pass
     return False
+
+# Establish connections
+for dest in destinations.values():
+    authenticate(dest)
 
 # Operation
 for target in targetDefs:
@@ -331,5 +377,9 @@ for target in targetDefs:
             print(rightAlign("  Tranfering " + filePath + "...", idStr), end='\r')
             target.send(destDecl, filePath)
             print(rightAlign("    " + filePath + " done!", idStr))
+
+# Close connections
+for dest in destinations.values():
+    closeConnection(dest)
 
 print("Process completed successfully!")

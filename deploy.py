@@ -217,8 +217,17 @@ targetDefs = getTargetDefs(val)
 
 # Functions
 
-def rightAlign(mainText, rightColumn):
+def rightAlign(mainText, rightColumn, indent = 0, leftPriority = False):
     columns, lines = os.get_terminal_size()
+    spaces = indent * 2
+    if (len(mainText) + len(rightColumn) + 2 + spaces) > columns:
+        if leftPriority:
+            mainText = mainText[:columns - len(rightColumn) - 5 - spaces] + '...  '
+        else:
+            mainText = '...' + mainText[-(columns - len(rightColumn) - 5 - spaces):] + '  '
+
+    mainText = (' ' * spaces) + mainText
+
     return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
 
 def getHostKeyData(hostname):
@@ -374,9 +383,9 @@ for target in targetDefs:
     for filePath in filePaths:
         for destDecl in target.destDecls:
             idStr = destinations[destDecl.id].getIdentifierStr()
-            print(rightAlign("  Tranfering " + filePath + "...", idStr), end='\r')
+            print(rightAlign("Tranfering " + filePath + "...", idStr, 1, True), end='\r')
             target.send(destDecl, filePath)
-            print(rightAlign("    " + filePath + " done!", idStr))
+            print(rightAlign(filePath + " done!", idStr, 2))
 
 # Close connections
 for dest in destinations.values():

@@ -107,11 +107,14 @@ class FileTarget(Target):
 
         return [sorted(matchCandidates, key = itemgetter(1), reverse = True)[0][0]]
 
-    def send(self, destDecl, filePath):
+    def getTarget(self, destDecl, filePath):
         if self.src.id != "local":
             raise NotImplementedError("Source must be local")
 
-        destFile = os.path.join(destDecl.dir, self.name)
+        return os.path.join(destDecl.dir, self.name)
+
+    def send(self, destDecl, filePath):
+        destFile = self.getTarget(destDecl, filePath)
 
         if destDecl.id == "local":
             lUpload(filePath, destFile)
@@ -138,12 +141,15 @@ class MapTarget(Target):
 
         return results
 
-    def send(self, destDecl, filePath):
+    def getTarget(self, destDecl, filePath):
         if self.src.id != "local":
             raise NotImplementedError("Source must be local")
 
         dirPart = re.match(self.src.dir + "(.*)", filePath).group(1)
-        destFile = os.path.join(destDecl.dir, dirPart)
+        return os.path.join(destDecl.dir, dirPart)
+
+    def send(self, destDecl, filePath):
+        destFile = self.getTarget(destDecl, filePath)
 
         if destDecl.id == "local":
             lUpload(filePath, destFile, skipIfExists = self.mode == "exists")
@@ -381,11 +387,14 @@ for target in targetDefs:
     print("Processing target " + target.id + "...")
     filePaths = target.getFiles()
     for filePath in filePaths:
+        print(rightAlign("Source path: " + filePath, "[local]", 2))
         for destDecl in target.destDecls:
             idStr = destinations[destDecl.id].getIdentifierStr()
-            print(rightAlign("Tranfering " + filePath + "...", idStr, 1, True), end='\r')
+            curFile = target.getTarget(destDecl, filePath);
+
+            print(rightAlign("Tranfering " + curFile + "...", idStr, 1, True), end='\r')
             target.send(destDecl, filePath)
-            print(rightAlign(filePath + " done!", idStr, 2))
+            print(rightAlign(curFile + " done!", idStr, 2))
 
 # Close connections
 for dest in destinations.values():

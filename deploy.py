@@ -22,6 +22,7 @@ import socket
 import sys
 import os
 import re
+import signal
 import shutil
 import paramiko
 import traceback
@@ -29,6 +30,11 @@ from getpass import getpass
 from operator import itemgetter, attrgetter
 from paramiko import SFTPClient
 from paramiko.ssh_exception import AuthenticationException
+
+def signal_handler(signal, frame):
+    print('\nExecution halted!')
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
 
 # Used for the destination declarations
 

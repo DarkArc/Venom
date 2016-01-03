@@ -1,4 +1,4 @@
-# Skelril Deployment - Deployment script
+# Venom - Deployment script
 # Copyright (C) 2015 Wyatt Childers
 #
 # This program is free software: you can redistribute it and/or modify
@@ -284,14 +284,21 @@ def authenticate(dest):
 
             dest.connection = paramiko.Transport((hostname, port))
 
-            dest.connection.connect(hostKey, username, getPass(dest))
+            keyPath = os.path.expanduser('~') + '/.ssh/id_rsa'
+            print(keyPath)
+            if (os.path.isfile(keyPath)):
+                print(rightAlign("Attempting to login via private key auth", dest.getIdentifierStr()))
 
-            # t.connect(hostkey, username, None, gss_host=socket.getfqdn(hostname),
-            #           gss_auth=True, gss_kex=True)
+                privateKey = paramiko.RSAKey.from_private_key_file(keyPath, getPass(dest))
+                dest.connection.connect(hostKey, username, pkey = privateKey)
+            else:
+                print(rightAlign("Attempting to login via password auth", dest.getIdentifierStr()))
+
+                dest.connection.connect(hostKey, username, getPass(dest))
 
             break
 
-        except AuthenticationException as e:
+        except (AuthenticationException, paramiko.ssh_exception.SSHException, paramiko.ber.BERException) as e:
             attempts += 1
             print("  Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
             dest.password = None

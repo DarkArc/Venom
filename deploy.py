@@ -29,11 +29,13 @@ import traceback
 from getpass import getpass
 from operator import itemgetter, attrgetter
 from paramiko import SFTPClient
-from paramiko.ssh_exception import AuthenticationException
+from paramiko.ber import BERException
+from paramiko.ssh_exception import AuthenticationException, SSHException
 
 def signal_handler(signal, frame):
     print('\nExecution halted!')
     sys.exit(0)
+
 signal.signal(signal.SIGINT, signal_handler)
 
 # Used for the destination declarations
@@ -291,7 +293,6 @@ def authenticate(dest):
             dest.connection = paramiko.Transport((hostname, port))
 
             keyPath = os.path.expanduser('~') + '/.ssh/id_rsa'
-            print(keyPath)
             if (os.path.isfile(keyPath)):
                 print(rightAlign("Attempting to login via private key auth", dest.getIdentifierStr()))
 
@@ -304,7 +305,7 @@ def authenticate(dest):
 
             break
 
-        except (AuthenticationException, paramiko.ssh_exception.SSHException, paramiko.ber.BERException) as e:
+        except (AuthenticationException, SSHException, BERException) as e:
             attempts += 1
             print("  Authentication error, please try again! (Failed attempts: " + str(attempts) + "/3)")
             dest.password = None

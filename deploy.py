@@ -121,13 +121,14 @@ class FileTarget(Target):
 
         return os.path.join(destDecl.dir, self.name)
 
-    def send(self, destDecl, filePath):
+    def send(self, destDecl, filePath, callBack):
         destFile = self.getTarget(destDecl, filePath)
 
         if destDecl.id == "local":
+            callBack()
             lUpload(filePath, destFile)
         else:
-            upload(destinations[destDecl.id], filePath, destFile)
+            upload(destinations[destDecl.id], filePath, destFile, callBack)
 
 class MapTarget(Target):
     def __init__(self, id, mode, src, destDecls):
@@ -156,13 +157,14 @@ class MapTarget(Target):
         dirPart = re.match(self.src.dir + "(.*)", filePath).group(1)
         return os.path.join(destDecl.dir, dirPart)
 
-    def send(self, destDecl, filePath):
+    def send(self, destDecl, filePath, callBack):
         destFile = self.getTarget(destDecl, filePath)
 
         if destDecl.id == "local":
+            callBack()
             lUpload(filePath, destFile, skipIfExists = self.mode == "exists")
         else:
-            upload(destinations[destDecl.id], filePath, destFile, skipIfExists = self.mode == "exists")
+            upload(destinations[destDecl.id], filePath, destFile, callBack, skipIfExists = self.mode == "exists")
 
 ################################################################################
 #                                                                              #
@@ -335,7 +337,7 @@ def lUpload(srcPath, destPath, skipIfExists = False):
     shutil.copyfile(srcPath, destPath)
     return True
 
-def renameUpload(sftp, src, dest):
+def renameUpload(sftp, src, dest, callBack):
     targDir = os.path.dirname(dest)
     dirStack = [targDir]
 
@@ -352,7 +354,7 @@ def renameUpload(sftp, src, dest):
         dir = dirStack.pop()
         sftp.mkdir(dir)
 
-    sftp.put(src, dest + ".temp")
+    sftp.put(src, dest + ".temp", callBack)
     try:
         sftp.stat(dest)
         sftp.remove(dest)
@@ -361,7 +363,7 @@ def renameUpload(sftp, src, dest):
 
     sftp.rename(dest + ".temp", dest)
 
-def upload(dest, srcPath, destPath, skipIfExists = False):
+def upload(dest, srcPath, destPath, callBack, skipIfExists = False):
     try:
         sftp = SFTPClient.from_transport(dest.connection)
 
@@ -378,7 +380,9 @@ def upload(dest, srcPath, destPath, skipIfExists = False):
                 exists = False
 
         if not skipIfExists or not exists:
-            renameUpload(sftp, srcPath, destPath)
+            renameUpload(sftp, srcPath, destPath, callBack)
+        else:
+            callBack()
 
         return True
     except Exception as e:
@@ -406,8 +410,14 @@ for target in targetDefs:
             idStr = destinations[destDecl.id].getIdentifierStr()
             curFile = target.getTarget(destDecl, filePath);
 
-            print(rightAlign("Tranfering " + curFile + "...", idStr, 1, True), end='\r')
-            target.send(destDecl, filePath)
+            def progressCallback(transfered = -1, fileSize = -1):
+                rightBlock = idStr
+                if transfered != -1 and fileSize != -1:
+                    rightBlock = "[" + str(int((transfered / fileSize) * 100)) + "%]" + rightBlock
+
+                print(rightAlign("Tranfering " + curFile + "...", rightBlock, 1, True), end='\r')
+
+            target.send(destDecl, filePath, progressCallback)
             print(rightAlign(curFile + " done!", idStr, 2))
 
 # Close connections

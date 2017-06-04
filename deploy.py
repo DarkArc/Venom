@@ -234,17 +234,20 @@ targetDefs = getTargetDefs(val)
 # Functions
 
 def rightAlign(mainText, rightColumn, indent = 0, leftPriority = False):
-    columns, lines = os.get_terminal_size()
-    spaces = indent * 2
-    if (len(mainText) + len(rightColumn) + 2 + spaces) > columns:
-        if leftPriority:
-            mainText = mainText[:columns - len(rightColumn) - 5 - spaces] + '...  '
-        else:
-            mainText = '...' + mainText[-(columns - len(rightColumn) - 5 - spaces):] + '  '
+    try:
+        columns, lines = os.get_terminal_size()
+        spaces = indent * 2
+        if (len(mainText) + len(rightColumn) + 2 + spaces) > columns:
+            if leftPriority:
+                mainText = mainText[:columns - len(rightColumn) - 5 - spaces] + '...  '
+            else:
+                mainText = '...' + mainText[-(columns - len(rightColumn) - 5 - spaces):] + '  '
 
-    mainText = (' ' * spaces) + mainText
+        mainText = (' ' * spaces) + mainText
 
-    return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
+        return (mainText + "{:>" + str(columns - len(mainText)) + "}").format(rightColumn)
+    except OSError as err:
+        return (mainText + rightColumn)
 
 def getHostKeyData(hostname):
     hostKeyType = None
